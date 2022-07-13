@@ -24,7 +24,7 @@
 
 解决方案:
 
-UnstoppableLender 合约 **flashLoan** 函数 在 **transfer** 代币到调用的合约前, 函数中有 assert 检查条件 `poolBalance == balanceBefore`,如果我们通过调用借贷池合约 **depositTokens** 函数存入代币是会正常更新 poolBalance, 能通过 assert 条件检查的 
+UnstoppableLender 合约 **flashLoan** 函数 在 **transfer** 代币到调用的合约前, 函数中有 **assert** 检查条件 `poolBalance == balanceBefore`,如果我们通过调用借贷池合约 **depositTokens** 函数存入代币是会正常更新 **poolBalance**, 能通过 assert 条件检查的 
 
 ```solidity
 uint256 balanceBefore = damnValuableToken.balanceOf(address(this));
@@ -51,7 +51,7 @@ forge test --match-contract Unstoppable -vvvv
 
 合约:
 
-- [NaiveReceiverLenderPool](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/NaiveReceiverLenderPool.sol)  借贷池合约
+- [NaiveReceiverLenderPool](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/naive-receiver/NaiveReceiverLenderPool.sol)  借贷池合约
 - [FlashLoanReceiver](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/unstoppable/FlashLoanReceiver.sol)   调用借贷池的闪电贷合约
 
 完成条件:
@@ -62,7 +62,7 @@ forge test --match-contract Unstoppable -vvvv
 
 解决方案:
 
- `NaiveReceiverLenderPool`合约 **flashLoan** 函数两个参数, borrower 为借款的合约的地址, borrowAmount 为借款的 ETH数.函数里functionCallWithValue 发送借款 ETH 金额到借款的合约并调用借款合约的 `receiveEther` ,最后 require 检查借贷池的合约里余额得为借款前余额+ `FIXED_FEE` ,也就是说每笔闪电贷调用,用户合约需要支付 1 ETH  的手续费.
+ `NaiveReceiverLenderPool`合约 **flashLoan** 函数两个参数, borrower 为借款的合约的地址, borrowAmount 为借款的 ETH数.函数里 **functionCallWithValue**  发送借款 ETH 金额到借款的合约并调用借款合约的 `receiveEther` ,最后 **require** 检查借贷池的合约里余额得为借款前余额+ `FIXED_FEE` ,也就是说每笔闪电贷调用,用户合约需要支付 1 ETH  的手续费.
 
 ```solidity
 uint256 private constant FIXED_FEE = 1 ether;
