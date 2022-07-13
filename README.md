@@ -52,7 +52,7 @@ forge test --match-contract Unstoppable -vvvv
 合约:
 
 - [NaiveReceiverLenderPool](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/naive-receiver/NaiveReceiverLenderPool.sol)  借贷池合约
-- [FlashLoanReceiver](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/unstoppable/FlashLoanReceiver.sol)   调用借贷池的闪电贷合约
+- [FlashLoanReceiver](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/naive-receiver/FlashLoanReceiver.sol)   调用借贷池的闪电贷合约
 
 完成条件:
 
