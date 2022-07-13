@@ -41,4 +41,4 @@ assert(poolBalance == balanceBefore);
 forge test --match-contract Unstoppable -vvvv
 ```
 
-![Unstoppable](.\testimage\Unstoppable.png)
+![Unstoppable](./testimage/Unstoppable.png)
