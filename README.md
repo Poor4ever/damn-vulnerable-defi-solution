@@ -35,9 +35,9 @@ assert(poolBalance == balanceBefore);
 
 
 
-使用 foundry 测试:
+使用 foundry 编写测试::
 
-[Unstoppable.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Unstoppable.t.sol)
+[Unstoppable.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/Unstoppable.t.sol#L59-L64)
 
 ```
 forge test --match-contract Unstoppable -vvvv
@@ -104,7 +104,9 @@ uint256 private constant FIXED_FEE = 1 ether;
 
 也就是说只要 `NaiveReceiverLenderPool`合约 **flashLoan** 函数,传入用户部署的 `FlashLoanReceiver` 地址, 此时 msg.sender 为借贷池合约,能通过 require 检查,而用户合约需要每笔多支付 1 ETH的手续费发送到借贷池合约,调用 10次就能耗尽用户合约中的所有 ETH.
 
-使用 foundry 测试:
+使用 foundry 编写测试:
+
+[NaiveReceiver.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/NaiveReceiver.t.sol#L48-L55)
 
 ```
 forge test --match-contract NaiveReceiver -vvvv
