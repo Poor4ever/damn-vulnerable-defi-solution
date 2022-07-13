@@ -151,7 +151,7 @@ forge test --match-contract NaiveReceiver -vvvv
 
 解决方案:
 
-直接看 `TrusterLenderPool` 的 **flashLoan** 函数,参数 target,和 data 传入可以直接让 `TrusterLenderPool`合约去call()调用任意合约的任意函数(永远不要相信用户的输入), **flashLoan** 函数最后面 **require()** 是保证闪电贷结束的额度得和调用前不变,所以不能在在 **target.functionCall(data)** 调用 dvt 代币合约的 **transfer()** 直接将池里的代币发送给我们,而是先通过approve()将代币授权给我们,等闪电贷结束后再调用 dvt 代币合约 **transfer()** 将所有代币发送给我们
+直接看 `TrusterLenderPool` 的 **flashLoan** 函数,参数 target,和 data 传入可以直接让 `TrusterLenderPool`合约去call()调用任意合约的任意函数(永远不要相信用户的输入), **flashLoan** 函数最后面 **require()** 是保证闪电贷结束的额度得和调用前不变,所以不能在在 **target.functionCall(data)** 调用 dvt 代币合约的 **transfer()** 直接将池里的代币发送给我们,而是先通过 **approve()** 将代币先授权给我们,等闪电贷结束后再调用 dvt 代币合约 **transfer()** 将所有代币发送给我们
 ```solidity
     function flashLoan(
         uint256 borrowAmount,
