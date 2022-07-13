@@ -62,7 +62,7 @@ forge test --match-contract Unstoppable -vvvv
 
 解决方案:
 
- `NaiveReceiverLenderPool`合约 **flashLoan **函数两个参数,borrower 为借款的合约的地址, borrowAmount 为借款的 ETH数.函数里functionCallWithValue 发送借款 ETH 金额到借款的合约并调用借款合约的 `receiveEther` ,最后 require 检查借贷池的合约里余额得为借款前余额+ `FIXED_FEE` ,也就是说每笔闪电贷调用,用户合约需要支付 1 ETH  的手续费.
+ `NaiveReceiverLenderPool`合约 **flashLoan** 函数两个参数, borrower 为借款的合约的地址, borrowAmount 为借款的 ETH数.函数里functionCallWithValue 发送借款 ETH 金额到借款的合约并调用借款合约的 `receiveEther` ,最后 require 检查借贷池的合约里余额得为借款前余额+ `FIXED_FEE` ,也就是说每笔闪电贷调用,用户合约需要支付 1 ETH  的手续费.
 
 ```solidity
 uint256 private constant FIXED_FEE = 1 ether;
