@@ -295,11 +295,11 @@ forge test --match-contract SideEntrance -vvvv
 
 解决方案:
 
-整个合约工作流程是:`TheRewarderPool` 是一个存放 DVT Token,为存入者 1 : 1 mint `Accounting`合约 Token,供调用 `AccountingToken` 合约快照存入的代币数量/总量相关信息,每五天为一轮根据快照计算出要 mint 给用户的`RewardToken` 合约奖励代币数量 ,mint奖励 Token. 而 `TheRewarderPool` 的问题是 **distributeRewards()** 函数里,每次都会调用会判断是否时间是否已过去 5 天足以开启下一轮,创建一个新的 Token 存入信息,检查调用者是否已经取回了他们当前轮的奖励,没有则计算调用者奖励代币数量并 mint 给调用者. 也就是说编写一个合约在足以开启新的一轮时间点发起一笔闪电贷从 `FlashLoanerPool`借出 dvt 代币 **deposit()** 到 `TheRewarderPool`合约,  **distributeRewards()** 函数里会快照一个新的存入 dvt 的代币数量计算并 mint 给我们奖励代币,然后在这笔交易里 **withdraw()** 出 dvt 代币还给 `FlashLoanerPool`.(等于只短暂闪电贷借用了 dvt 代币,进行快照获得了大量奖励代币).
+整个合约工作流程是`TheRewarderPool` 是一个存放 DVT Token,为存入者 1 : 1 mint `Accounting`合约 Token,供调用 `AccountingToken` 合约快照存入的代币数量/总量相关信息,每五天为一轮根据快照计算出要 mint 给用户的`RewardToken` 合约奖励代币数量 ,mint奖励 Token. 而 `TheRewarderPool` 的问题是 **distributeRewards()** 函数里,每次都会调用会判断是否时间是否已过去 5 天足以开启下一轮,创建一个新的 Token 存入信息,检查调用者是否已经取回了他们当前轮的奖励,没有则计算调用者奖励代币数量并 mint 给调用者. 也就是说编写一个合约在足以开启新的一轮时间点发起一笔闪电贷从 `FlashLoanerPool`借出 dvt 代币 **deposit()** 到 `TheRewarderPool`合约,  **distributeRewards()** 函数里会快照一个新的存入 dvt 的代币数量计算并 mint 给我们奖励代币,然后在这笔交易里 **withdraw()** 出 dvt 代币还给 `FlashLoanerPool`.(等于只短暂闪电贷借用了 dvt 代币,进行快照获得了大量奖励代币).
 
 使用 foundry 编写测试:
 
-[TheRewarderPool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/TheRewarder.t.sol)
+[TheRewarderPool.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/TheRewarder.t.sol)
 
 ```
 forge test --match-contract TheRewarder -vvvv
