@@ -178,7 +178,7 @@ forge test --match-contract NaiveReceiver -vvvv
 
 
 使用 foundry 编写测试:
-[Truster.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/Truster.t.sol#L35-L42)
+[Truster.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/b96aacfd662b555a42a225950a200665e86f8304/src/test/Truster.t.sol#L35-L42)
 
 ```solidity
     function testExploit() public {
@@ -205,7 +205,7 @@ forge test --match-contract Truster -vvvv
 
 合约:
 
-[SideEntranceLenderPool](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/side-entrance/SideEntranceLenderPool.sol)  借贷池合约
+- [SideEntranceLenderPool](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/side-entrance/SideEntranceLenderPool.sol)  借贷池合约
 
 完成条件: 
 
@@ -240,7 +240,7 @@ forge test --match-contract Truster -vvvv
 
 使用 foundry 编写测试:
 
-[SideEntrance.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/SideEntrance.t.sol#L38-L69)
+[SideEntrance.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/SideEntrance.t.sol#L38-L68)
 
 ```solidity
     function testExploit() public {
