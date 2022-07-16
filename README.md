@@ -435,7 +435,7 @@ forge test --match-contract Selfie -vvv
 
 有一个奇怪的 HTTP 响应 
 
-```http
+```
           HTTP/2 200 OK
           content-type: text/html
           content-language: en
@@ -450,7 +450,7 @@ forge test --match-contract Selfie -vvv
 
 一个相关的链上交易所正在出售（价格高得离谱）名为“DVNFT”的收藏品，现在每个 999 ETH
 
-该价格来自链上预言机，并基于三个受信任的价格报告者,分别为
+该价格来自链上预言机，并基于三个受信任的价格报告源,分别为
 
 `0xA73209FB1a42495120166736362A1DfA9F95A105`,`0xe92401A4d3af5E446d93D11EEc806b1462b39D15` ,`0x81A5D6E50C214044bE44cA0CB057fe119097850c`.
 
@@ -466,7 +466,7 @@ forge test --match-contract Selfie -vvv
 
 ![Convert](./testimage/Compromised_HEX_Convert.png)
 
-再看到 `Exchange` 合约的 NFT 的价格计算是来自 ` TrustfulOracle` 预言机 **getMedianPrice()** 函数,预言机里对价格的计算取来自受信任的报价者的三个报价的中值,这里我们掌控了两个私钥,也就可以操控价格,在调用 `buyOne()`函数时,用两个受信任的报价者有权限调用预言机合约  **postPrice()** 报价为 0,以很低的价格购买 NFT, **sellOne()** 出售 NFT 时将报价设高价格到足以窃取完 `Exchange` 交易合约里的所有 ETH.
+再看到 `Exchange` 合约的 NFT 的价格计算是来自 ` TrustfulOracle` 预言机 **getMedianPrice()** 函数,预言机里对价格的计算取来自受信任的报价源的三个报价的中值,这里我们掌控了两个私钥,也就可以操控价格,在调用 `buyOne()`函数时,用两个受信任的报价源有权限调用预言机合约  **postPrice()** 报价为 0,以很低的价格购买 NFT, **sellOne()** 出售 NFT 时将报价设高价格到足以窃取完 `Exchange` 交易合约里的所有 ETH.
 
 使用 foundry 编写测试:
 
