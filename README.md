@@ -538,3 +538,7 @@ Uniswap v1 合约目前有 10 ETH 和 10 DVT 的流动性的池子,从余额 25 
      }
  ```
 
+```
+forge test --match-contract PuppetPool -vvvv
+```
+
