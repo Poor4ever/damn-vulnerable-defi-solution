@@ -599,7 +599,7 @@ forge test --match-contract PuppetV2 -vvvv
 
 解决方案:
 
-`FreeRiderNFTMarketplace` NFT 交易市场存在的漏洞就是 **buyMany()** 函数传入要购买的多个 NFT Tokenid 数组 for 循环调用 **_buyOne()** 函数 **msg.value** 错误的判断, **buyMany()** 购买多个 NFT 只需要发送一个 NFT 价格 15 ETH 就能通过 require 检查,而我们初始余额只有 0.5 ETH,就需要从 Uniswap 的池子里 **flashswap()** 借用 15 WETH,换成 ETH,花费 15 ETH 调用 **buyMany()** 就能从 NFT 交易市场里获得 6 个 NFT,发送给 **FreeRiderBuyer** 合约,从 **onERC721Received()** hook 里获得买家承诺的 45  ETH,把 ETH + flashswap free 包装还给 Uniswap ,最终获得 35 ETH左右,完成挑战.
+`FreeRiderNFTMarketplace` NFT 交易市场存在的漏洞就是 **buyMany()** 函数传入要购买的多个 NFT Tokenid 数组 for 循环调用 **_buyOne()** 函数 对**msg.value** 错误的判断, **buyMany()** 购买多个 NFT 只需要发送一个 NFT 价格 15 ETH 就能通过 require 检查,而我们初始余额只有 0.5 ETH,就需要从 Uniswap 的池子里 **flashswap()** 借用 15 WETH,换成 ETH,花费 15 ETH 调用 **buyMany()** 就能从 NFT 交易市场里获得 6 个 NFT,发送给 **FreeRiderBuyer** 合约,从 **onERC721Received()** hook 里获得买家承诺的 45  ETH,把 ETH + flashswap free 包装成 WETH 还给 Uniswap ,最终获得 35 ETH左右,完成挑战.
 
 使用 foundry 编写测试:
 
