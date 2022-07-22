@@ -808,6 +808,7 @@ contract PayLoad {
         walletregistry = _walletregistryaddr;
         factory = _factoryaddr;
     }
+    
     function Start(address[] memory _beneficiaries) public {
     for (uint8 i=0; i < _beneficiaries.length; i++) {
         address beneficiary = _beneficiaries[i];
