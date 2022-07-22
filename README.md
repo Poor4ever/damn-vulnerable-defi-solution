@@ -756,7 +756,7 @@ TL;DR
     }
 ```
 
-`GnosisSafeProxy.sol` 多签钱包的逻辑的实现合约. **setup(address[],uint256,address,bytes,address,address,uint256,address)** : **0xb63e800d** 函数用于初始化合约
+`GnosisSafeProxy.sol` 多签钱包的逻辑合约. **setup(address[],uint256,address,bytes,address,address,uint256,address)** : **0xb63e800d** 函数用于初始化合约
 
 ```solidity
     function setup(
