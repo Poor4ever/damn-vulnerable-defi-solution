@@ -773,7 +773,7 @@ TL;DR
 
 以上就是完成题目需要的一些前置知识,然后看 `WalletRegistry` 这个我们需要从中获得里面 40个 DVT 的注册奖励表合约,只有 4 个外部地址创建 GnosisSafe 钱包才能获得 10 个 DVT 钱包,那我们做为攻击者应该怎么获得.
 
-看 到 **proxyCreated()** 函数,函数检查了是否被是被工厂合约调用,以及是否安照预期的正常初始化(检查有没有使用正确的逻辑合约,检查多签钱包所有者得为1人,多签钱包执行交易所需要的确认数量得为1,是否是可获得奖励代币的那四个地址创建钱包),如果通过则发送 DVT 代币奖励给创钱包的地址.
+看到 **proxyCreated()** 函数,函数检查了是否被是被工厂合约调用,以及是否安照预期的正常初始化(检查有没有使用正确的逻辑合约,检查多签钱包所有者得为1人,多签钱包执行交易所需要的确认数量得为1,是否是可获得奖励代币的那四个地址创建钱包),如果通过则发送 DVT 代币奖励给创钱包的地址.
 
 读过代码发现这个函数会在工厂合约调用  **createProxyWithCallback()** ,新的 `GnosisSafeProxy` 合同被成功部署和初始化后(也就是创建钱包)被工厂合约调用.
 
@@ -831,6 +831,7 @@ contract PayLoad {
 }
 
 contract Backdoor is Test {
+//...
     function testExploit() public {
         vm.startPrank(attacker);
         payload = new PayLoad(masterCopy, dvt, walletRegistry, walletFactory);
@@ -838,6 +839,7 @@ contract Backdoor is Test {
         vm.stopPrank();
         verfiy();
     }	
+//...
 }
 ```
 
