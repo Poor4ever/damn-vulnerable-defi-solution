@@ -687,9 +687,9 @@ forge test --match-contract FreeRider -vvvv
 
 合约:
 
-- [GnosisSafeProxyFactory.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/tree/main/libsafe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol) GnosisSafe 工厂合约
-- [GnosisSafeProxy.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/tree/main/lib/safe-contracts/contracts/proxies/GnosisSafeProxy.sol) GnosisSafe 代理合约
-- [GnosisSafe.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/tree/main/lib/safe-contracts/contracts/GnosisSafe.sol) GnosisSafe 实现合约
+- [GnosisSafeProxyFactory.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/lib/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol) GnosisSafe 工厂合约
+- [GnosisSafeProxy.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/lib/safe-contracts/contracts/proxies/GnosisSafeProxy.sol) GnosisSafe 代理合约
+- [GnosisSafe.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/lib/safe-contracts/contracts/proxies/GnosisSafeProxy.sol) GnosisSafe 实现合约
 - [WalletRegistry.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Backdoor.t.sol) 钱包注册表合约
 
 题目要求:
