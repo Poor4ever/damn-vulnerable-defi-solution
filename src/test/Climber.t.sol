@@ -151,10 +151,10 @@ contract Climber is Test {
         payload = new Payload(climberTimelock, climberVaultProxy, climberImplementation, dvt);
         payload.Start();
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         assertEq(dvt.balanceOf(attacker), VAULT_TOKEN_BALANCE);
         assertEq(dvt.balanceOf(address(climberVaultProxy)), 0);
     }

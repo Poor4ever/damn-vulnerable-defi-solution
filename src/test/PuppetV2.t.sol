@@ -127,10 +127,10 @@ contract PuppetV2 is Test {
         weth.approve(address(puppetV2Pool), type(uint256).max);
         puppetV2Pool.borrow(dvt.balanceOf(address(puppetV2Pool)));
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         assertEq(dvt.balanceOf(attacker), POOL_INITIAL_TOKEN_BALANCE);
         assertEq(dvt.balanceOf(address(puppetV2Pool)), 0);
     }

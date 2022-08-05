@@ -40,10 +40,10 @@ contract SideEntrance is Test {
         payload = new PayLoad(address(sideEntranceLenderPool));
         payload.start();
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         assertEq(address(sideEntranceLenderPool).balance, 0);
         assertGt(attacker.balance, attackerInitialEthBalance);
     }

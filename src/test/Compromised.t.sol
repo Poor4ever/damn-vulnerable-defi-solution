@@ -98,10 +98,10 @@ contract Compromised is Test {
         damnValuableNFT.approve(address(exchange), 0);
         exchange.sellOne(0);
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         // Exchange must have lost all ETH
         assertEq(address(exchange).balance, 0);
 

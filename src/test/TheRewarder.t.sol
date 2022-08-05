@@ -123,10 +123,10 @@ contract TheRewarder is Test {
         payload = new PayLoad(flashLoanerPool, theRewarderPool, dvt);
         payload.startAttack();
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         assertEq(theRewarderPool.roundNumber(), 3); // Only one round should have taken place
         for (uint8 i; i < 4; i++) {
             // Users should get negligible rewards this round

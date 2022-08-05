@@ -212,10 +212,10 @@ contract FreeRider is Test {
         payload = new PayLoad(uniswapV2Pair, weth, freeRiderNFTMarketplace, freeRiderBuyer, damnValuableNFT);
         payload.Start();
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         /** SUCCESS CONDITIONS */
 
         // Attacker must have earned all ETH from the payout

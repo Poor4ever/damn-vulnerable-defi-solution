@@ -80,10 +80,10 @@ contract Selfie is Test {
         utils.mineTime(2 days);
         simpleGovernance.executeAction(payload.actionId());
         vm.stopPrank();  
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         assertEq(dvtSnapshot.balanceOf(attacker), TOKENS_IN_POOL);
         assertEq(dvtSnapshot.balanceOf(address(selfiePool)), 0);
     }

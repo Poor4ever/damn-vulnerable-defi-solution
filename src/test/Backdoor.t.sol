@@ -117,10 +117,10 @@ contract Backdoor is Test {
         payload = new PayLoad(masterCopy, dvt, walletRegistry, walletFactory);
         payload.Start(users);
         vm.stopPrank();
-        verfiy();
+        verify();
     }
 
-    function verfiy() internal {
+    function verify() internal {
         /** SUCCESS CONDITIONS */
         for (uint256 i = 0; i < NUM_USERS; i++) {
             address wallet = walletRegistry.wallets(users[i]);

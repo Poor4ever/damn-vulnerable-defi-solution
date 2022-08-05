@@ -971,6 +971,6 @@ contract newImpl is UUPSUpgradeable {
 ```
 
 ```
-forge test --match-contract Climber -vvvv
+forge test --match-contract Climber -vvvv --block-timestamp 1
 ```
 
